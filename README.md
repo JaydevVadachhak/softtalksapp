@@ -6,8 +6,6 @@
 
 A real-time chat application built with Node.js, Socket.io, and Redis Pub/Sub.
 
-![SoftTalks Screenshot](https://via.placeholder.com/800x400?text=SoftTalks+Chat+App)
-
 ## Features
 
 - Real-time messaging using Socket.io
