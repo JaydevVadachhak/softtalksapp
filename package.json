@@ -1,0 +1,50 @@
+{
+  "name": "softtalksapp",
+  "version": "1.0.0",
+  "description": "Real-time chat application using Node.js, Socket.io, and Redis Pub/Sub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "redis:start": "docker run --name soft-talks-redis-instance -p 6379:6379 -v ./data:/data -d redis redis-server --save 60 1 --loglevel warning",
+    "redis:stop": "docker stop soft-talks-redis-instance && docker rm soft-talks-redis-instance",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "chat",
+    "real-time",
+    "socket.io",
+    "redis",
+    "pub/sub",
+    "nodejs",
+    "express"
+  ],
+  "author": "SoftTalks Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JaydevVadachhak/softtalksapp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JaydevVadachhak/softtalksapp/issues"
+  },
+  "homepage": "https://github.com/JaydevVadachhak/softtalksapp#readme",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "redis": "^5.1.1",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.29",
+    "@types/socket.io": "^3.0.1",
+    "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

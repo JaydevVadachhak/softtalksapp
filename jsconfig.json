@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "CommonJS",
+    "allowSyntheticDefaultImports": true,
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "moduleResolution": "node"
+  },
+  "exclude": ["node_modules"],
+  "typeAcquisition": {
+    "include": ["node", "express", "socket.io", "redis"]
+  }
+}

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SoftTalks - Real-time Chat App</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <div class="join-container" id="join-container">
+        <h1>SoftTalks</h1>
+        <p>Join a chat room to start talking</p>
+        <div class="form-control">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            name="username"
+            id="username"
+            placeholder="Enter username..."
+            required
+          />
+        </div>
+        <div class="form-control">
+          <label for="room">Room</label>
+          <select name="room" id="room">
+            <option value="General">General</option>
+            <option value="Technology">Technology</option>
+            <option value="Sports">Sports</option>
+            <option value="Entertainment">Entertainment</option>
+          </select>
+        </div>
+        <button class="btn" id="join-btn">Join Chat</button>
+      </div>
+
+      <div class="chat-container" id="chat-container" style="display: none">
+        <header class="chat-header">
+          <h1>SoftTalks</h1>
+          <div class="room-info">
+            <span id="room-name"></span>
+          </div>
+          <button id="leave-btn" class="btn">Leave Room</button>
+        </header>
+        <main class="chat-main">
+          <div class="chat-sidebar">
+            <h3>Room Information</h3>
+            <div id="users-container">
+              <div id="user-count">
+                Active users: <span id="users-count">0</span>
+              </div>
+              <ul id="users-list" class="users-list"></ul>
+            </div>
+          </div>
+          <div class="chat-areas">
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="private-chat" id="private-chat" style="display: none">
+              <div class="private-chat-header">
+                <h3>Chat with <span id="private-chat-user"></span></h3>
+                <button id="close-private-chat" class="btn-icon">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div
+                class="private-chat-messages"
+                id="private-chat-messages"
+              ></div>
+              <div class="private-chat-form-container">
+                <form id="private-chat-form">
+                  <input
+                    id="private-msg"
+                    type="text"
+                    placeholder="Type a private message..."
+                    required
+                    autocomplete="off"
+                  />
+                  <button class="btn">
+                    <i class="fas fa-paper-plane"></i> Send
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </main>
+        <div class="chat-form-container">
+          <form id="chat-form">
+            <input
+              id="msg"
+              type="text"
+              placeholder="Type a message..."
+              required
+              autocomplete="off"
+            />
+            <button class="btn"><i class="fas fa-paper-plane"></i> Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
