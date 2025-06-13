@@ -51,44 +51,143 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Middleware to parse JSON
+app.use(express.json());
+
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Active users map: { socketId: { id, username, room } }
+// Active users map: { socketId: { id, username, uid, email, photoURL } }
 const activeUsers = new Map();
+// Mapping of usernames to socket IDs: { username: socketId }
+const usernameToSocketMap = new Map();
+// Mapping of Firebase UIDs to socket IDs: { uid: socketId }
+const uidToSocketMap = new Map();
+
+// Store user profile in Redis
+async function storeUserProfile(uid, userProfile) {
+    try {
+        // Ensure username is always available
+        if (!userProfile.username || userProfile.username.trim() === '') {
+            if (userProfile.email) {
+                // Generate username from email if available
+                userProfile.username = userProfile.email.split('@')[0];
+            } else {
+                // Generate random username as fallback
+                userProfile.username = `user_${Math.floor(Math.random() * 10000)}`;
+            }
+        }
+
+        // Ensure photoURL is always available
+        if (!userProfile.photoURL) {
+            userProfile.photoURL = generateDefaultAvatar(userProfile.username);
+        }
+
+        await redisClient.set(`user:${uid}`, JSON.stringify(userProfile));
+
+        // Add user to the all users list
+        const allUsers = await getAllUsers();
+        if (!allUsers.some(user => user.uid === uid)) {
+            allUsers.push(userProfile);
+            await redisClient.set('all_users', JSON.stringify(allUsers));
+        } else {
+            // Update existing user
+            const updatedUsers = allUsers.map(user =>
+                user.uid === uid ? { ...user, ...userProfile, lastSeen: Date.now() } : user
+            );
+            await redisClient.set('all_users', JSON.stringify(updatedUsers));
+        }
+    } catch (err) {
+        console.error('Error storing user profile:', err);
+    }
+}
+
+// Get user profile from Redis
+async function getUserProfile(uid) {
+    try {
+        const profile = await redisClient.get(`user:${uid}`);
+        return profile ? JSON.parse(profile) : null;
+    } catch (err) {
+        console.error('Error getting user profile:', err);
+        return null;
+    }
+}
+
+// Get all users from Redis
+async function getAllUsers() {
+    try {
+        const users = await redisClient.get('all_users');
+        return users ? JSON.parse(users) : [];
+    } catch (err) {
+        console.error('Error getting all users:', err);
+        return [];
+    }
+}
+
+// Get user conversations from Redis
+async function getUserConversations(uid) {
+    try {
+        const conversations = await redisClient.get(`conversations:${uid}`);
+        return conversations ? JSON.parse(conversations) : [];
+    } catch (err) {
+        console.error('Error getting user conversations:', err);
+        return [];
+    }
+}
+
+// Store user conversation in Redis
+async function storeUserConversation(uid1, uid2) {
+    try {
+        // Store for first user
+        let conversations1 = await getUserConversations(uid1);
+        if (!conversations1.includes(uid2)) {
+            conversations1.push(uid2);
+            await redisClient.set(`conversations:${uid1}`, JSON.stringify(conversations1));
+        }
+
+        // Store for second user
+        let conversations2 = await getUserConversations(uid2);
+        if (!conversations2.includes(uid1)) {
+            conversations2.push(uid1);
+            await redisClient.set(`conversations:${uid2}`, JSON.stringify(conversations2));
+        }
+    } catch (err) {
+        console.error('Error storing user conversation:', err);
+    }
+}
 
 // Store messages in Redis
-async function storeMessage(room, message) {
+async function storeMessage(sender, receiver, message) {
     try {
-        // Store message in a list for the room
-        await redisClient.rPush(`messages:${room}`, JSON.stringify(message));
-        // Keep only last 50 messages per room
-        await redisClient.lTrim(`messages:${room}`, -50, -1);
+        // Create a consistent conversation ID (alphabetically sorted)
+        const users = [sender, receiver].sort();
+        const conversationId = `conversation:${users[0]}:${users[1]}`;
+
+        // Store message in a list for the conversation
+        await redisClient.rPush(`messages:${conversationId}`, JSON.stringify(message));
+        // Keep only last 100 messages per conversation
+        await redisClient.lTrim(`messages:${conversationId}`, -100, -1);
+
+        // Store the conversation link for both users
+        const senderUser = await getUserProfile(message.fromUid);
+        const receiverUser = await getUserProfile(message.toUid);
+
+        if (senderUser && receiverUser) {
+            await storeUserConversation(senderUser.uid, receiverUser.uid);
+        }
     } catch (err) {
         console.error('Error storing message:', err);
     }
 }
 
-// Store private messages in Redis
-async function storePrivateMessage(sender, receiver, message) {
-    try {
-        // Create a consistent private room ID (alphabetically sorted)
-        const users = [sender, receiver].sort();
-        const privateRoomId = `private:${users[0]}:${users[1]}`;
-
-        // Store message in a list for the private room
-        await redisClient.rPush(`messages:${privateRoomId}`, JSON.stringify(message));
-        // Keep only last 50 messages per private room
-        await redisClient.lTrim(`messages:${privateRoomId}`, -50, -1);
-    } catch (err) {
-        console.error('Error storing private message:', err);
-    }
-}
-
 // Get messages from Redis
-async function getMessages(room) {
+async function getMessages(user1, user2) {
     try {
-        const messages = await redisClient.lRange(`messages:${room}`, 0, -1);
+        // Create a consistent conversation ID (alphabetically sorted)
+        const users = [user1, user2].sort();
+        const conversationId = `conversation:${users[0]}:${users[1]}`;
+
+        const messages = await redisClient.lRange(`messages:${conversationId}`, 0, -1);
         return messages.map(msg => JSON.parse(msg));
     } catch (err) {
         console.error('Error getting messages:', err);
@@ -96,196 +195,237 @@ async function getMessages(room) {
     }
 }
 
-// Get private messages from Redis
-async function getPrivateMessages(user1, user2) {
-    try {
-        // Create a consistent private room ID (alphabetically sorted)
-        const users = [user1, user2].sort();
-        const privateRoomId = `private:${users[0]}:${users[1]}`;
-
-        const messages = await redisClient.lRange(`messages:${privateRoomId}`, 0, -1);
-        return messages.map(msg => JSON.parse(msg));
-    } catch (err) {
-        console.error('Error getting private messages:', err);
-        return [];
-    }
-}
-
-// Get users in a room
-function getUsersInRoom(room) {
+// Get all active users
+function getAllActiveUsers() {
     const users = [];
     activeUsers.forEach((user) => {
-        if (user.room === room) {
-            users.push({ id: user.id, username: user.username });
-        }
+        users.push({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            photoURL: user.photoURL || generateDefaultAvatar(user.username),
+            uid: user.uid,
+            isOnline: true
+        });
     });
     return users;
 }
 
-// Update room users
-function updateRoomUsers(room) {
-    const users = getUsersInRoom(room);
-    console.log(`Updating users for room ${room}:`, users);
-    io.to(room).emit('roomUsers', { room, users });
+// Generate default avatar URL based on username
+function generateDefaultAvatar(username) {
+    const initial = username ? username[0].toUpperCase() : 'U';
+    return `https://ui-avatars.com/api/?name=${initial}&background=4f9cf6&color=fff&size=128`;
+}
+
+// Update active users list for all clients
+async function updateActiveUsers() {
+    // Get active users
+    const activeUsersList = getAllActiveUsers();
+
+    // Get all users from Redis
+    let allUsers = await getAllUsers();
+
+    // Mark active users as online
+    const activeUserIds = activeUsersList.map(user => user.uid);
+    allUsers = allUsers.map(user => ({
+        ...user,
+        isOnline: activeUserIds.includes(user.uid),
+        photoURL: user.photoURL || generateDefaultAvatar(user.username)
+    }));
+
+    // Send the combined list to all clients
+    io.emit('activeUsers', allUsers);
 }
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
     console.log('New user connected:', socket.id);
 
-    // Join a room
-    socket.on('joinRoom', async (data) => {
-        const { username, room } = data;
-        socket.join(room);
-        console.log(`User ${socket.id} (${username}) joined room: ${room}`);
+    // User login with Firebase authentication
+    socket.on('userLogin', async (data) => {
+        let { username, uid, email, photoURL } = data;
+
+        // Ensure username is available
+        if (!username || username.trim() === '') {
+            if (email) {
+                username = email.split('@')[0];
+            } else {
+                username = `user_${Math.floor(Math.random() * 10000)}`;
+            }
+        }
+
+        // Check if username is already taken by another active user
+        if (usernameToSocketMap.has(username) && usernameToSocketMap.get(username) !== socket.id) {
+            // If username is taken, add a suffix to make it unique
+            const originalUsername = username;
+            let counter = 1;
+            while (usernameToSocketMap.has(username)) {
+                username = `${originalUsername}${counter}`;
+                counter++;
+            }
+
+            socket.emit('usernameChanged', {
+                originalUsername: originalUsername,
+                newUsername: username,
+                message: `Username "${originalUsername}" was already taken. You've been assigned "${username}" instead.`
+            });
+        }
+
+        console.log(`User ${socket.id} logged in as: ${username} (${email || 'No email'})`);
 
         // Add user to active users
-        activeUsers.set(socket.id, { id: socket.id, username, room });
-
-        // Subscribe to Redis channel for this room
-        await redisSubscriber.subscribe(`chat:${room}`, (message) => {
-            const messageData = JSON.parse(message);
-            // Broadcast to all clients in the room
-            io.to(room).emit('message', messageData);
-        });
-
-        // Send join notification to the room
-        socket.to(room).emit('message', {
-            user: 'System',
-            text: `${username} has joined the room.`,
-            time: new Date().toLocaleTimeString()
-        });
-
-        // Send previous messages to the user
-        const previousMessages = await getMessages(room);
-        if (previousMessages.length > 0) {
-            socket.emit('previousMessages', previousMessages);
-        }
-
-        // Update and send the list of users in the room
-        updateRoomUsers(room);
-    });
-
-    // Leave a room
-    socket.on('leaveRoom', async (room) => {
-        socket.leave(room);
-        const user = activeUsers.get(socket.id);
-
-        if (user) {
-            console.log(`User ${socket.id} (${user.username}) left room: ${room}`);
-
-            // Unsubscribe from Redis channel for this room
-            await redisSubscriber.unsubscribe(`chat:${room}`);
-
-            // Send leave notification to the room
-            socket.to(room).emit('message', {
-                user: 'System',
-                text: `${user.username} has left the room.`,
-                time: new Date().toLocaleTimeString()
-            });
-
-            // Remove user from active users
-            activeUsers.delete(socket.id);
-
-            // Update and send the list of users in the room
-            updateRoomUsers(room);
-        }
-    });
-
-    // Handle chat messages
-    socket.on('sendMessage', async (data) => {
-        const { room, user, text } = data;
-        const messageData = {
-            user,
-            text,
-            time: new Date().toLocaleTimeString()
+        const userProfile = {
+            id: socket.id,
+            username,
+            uid,
+            email,
+            photoURL: photoURL || generateDefaultAvatar(username),
+            lastSeen: Date.now(),
+            isOnline: true
         };
 
-        // Store message in Redis
-        await storeMessage(room, messageData);
+        activeUsers.set(socket.id, userProfile);
+        usernameToSocketMap.set(username, socket.id);
+        uidToSocketMap.set(uid, socket.id);
 
-        // Publish message to Redis
-        await redisPublisher.publish(`chat:${room}`, JSON.stringify(messageData));
+        // Store user profile in Redis
+        await storeUserProfile(uid, userProfile);
+
+        // Send welcome message
+        socket.emit('message', {
+            from: 'System',
+            text: `Welcome to SoftTalks, ${username}!`,
+            time: new Date().toLocaleTimeString()
+        });
+
+        // Send user's conversation history
+        const conversations = await getUserConversations(uid);
+        if (conversations && conversations.length > 0) {
+            const conversationUsers = [];
+
+            for (const otherUid of conversations) {
+                const otherUser = await getUserProfile(otherUid);
+                if (otherUser) {
+                    conversationUsers.push({
+                        username: otherUser.username,
+                        uid: otherUser.uid,
+                        photoURL: otherUser.photoURL || generateDefaultAvatar(otherUser.username),
+                        email: otherUser.email,
+                        lastSeen: otherUser.lastSeen || Date.now(),
+                        isOnline: uidToSocketMap.has(otherUser.uid)
+                    });
+                }
+            }
+
+            socket.emit('conversationHistory', conversationUsers);
+        }
+
+        // Update and send the list of active users to all clients
+        await updateActiveUsers();
     });
 
-    // Handle private message initialization
-    socket.on('initPrivateChat', async ({ targetUser }) => {
+    // Initialize chat with another user
+    socket.on('initChat', async ({ targetUser, targetUid }) => {
         const currentUser = activeUsers.get(socket.id);
 
         if (!currentUser) return;
 
-        // Get previous messages between these users
-        const previousMessages = await getPrivateMessages(currentUser.username, targetUser);
+        let messages = [];
+
+        // If we have UIDs, use those for retrieving messages
+        if (currentUser.uid && targetUid) {
+            messages = await getMessages(currentUser.uid, targetUid);
+
+            // Store this conversation for both users
+            await storeUserConversation(currentUser.uid, targetUid);
+        } else {
+            // Fallback to usernames
+            messages = await getMessages(currentUser.username, targetUser);
+        }
 
         // Send previous messages to the user
-        socket.emit('previousPrivateMessages', {
+        socket.emit('previousMessages', {
             withUser: targetUser,
-            messages: previousMessages
+            withUid: targetUid,
+            messages: messages
         });
     });
 
-    // Handle private messages
-    socket.on('sendPrivateMessage', async (data) => {
-        const { to, text } = data;
+    // Handle messages
+    socket.on('sendMessage', async (data) => {
+        const { to, toUid, text } = data;
         const fromUser = activeUsers.get(socket.id);
 
         if (!fromUser) return;
 
-        const toSocketId = findSocketIdByUsername(to);
-
-        if (!toSocketId) {
-            // Target user not found or offline
-            socket.emit('privateMessageError', {
-                message: 'User is offline or not found',
-                to
-            });
-            return;
-        }
+        const toSocketId = toUid ? uidToSocketMap.get(toUid) : usernameToSocketMap.get(to);
 
         const messageData = {
             from: fromUser.username,
+            fromUid: fromUser.uid,
+            fromEmail: fromUser.email,
+            fromPhoto: fromUser.photoURL || generateDefaultAvatar(fromUser.username),
             to,
+            toUid,
             text,
-            time: new Date().toLocaleTimeString()
+            time: new Date().toLocaleTimeString(),
+            timestamp: Date.now()
         };
 
-        // Store private message in Redis
-        await storePrivateMessage(fromUser.username, to, messageData);
+        // Store message in Redis
+        await storeMessage(fromUser.uid || fromUser.username, toUid || to, messageData);
 
-        // Send to sender and receiver
-        socket.emit('privateMessage', messageData);
-        io.to(toSocketId).emit('privateMessage', messageData);
+        // Send to sender
+        socket.emit('message', messageData);
+
+        // Send to receiver if online
+        if (toSocketId) {
+            io.to(toSocketId).emit('message', messageData);
+        } else {
+            // Inform sender that the user is offline
+            socket.emit('messageStatus', {
+                message: 'User is offline. Message will be delivered when they come online.',
+                to
+            });
+        }
     });
 
-    // Helper function to find a socket ID by username
-    function findSocketIdByUsername(username) {
-        for (const [socketId, user] of activeUsers.entries()) {
-            if (user.username === username) {
-                return socketId;
-            }
-        }
-        return null;
-    }
+    // Get all users
+    socket.on('getAllUsers', async () => {
+        const allUsers = await getAllUsers();
+        const activeUserIds = Array.from(activeUsers.values()).map(user => user.uid);
+
+        const usersWithStatus = allUsers.map(user => ({
+            ...user,
+            isOnline: activeUserIds.includes(user.uid),
+            photoURL: user.photoURL || generateDefaultAvatar(user.username)
+        }));
+
+        socket.emit('allUsers', usersWithStatus);
+    });
 
     // Handle disconnection
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         const user = activeUsers.get(socket.id);
 
         if (user) {
             console.log(`User disconnected: ${socket.id} (${user.username})`);
 
-            // Send leave notification to the room
-            socket.to(user.room).emit('message', {
-                user: 'System',
-                text: `${user.username} has left the room.`,
-                time: new Date().toLocaleTimeString()
-            });
+            // Update user's last seen time
+            const userProfile = await getUserProfile(user.uid);
+            if (userProfile) {
+                userProfile.lastSeen = Date.now();
+                userProfile.isOnline = false;
+                await storeUserProfile(user.uid, userProfile);
+            }
 
-            // Remove user from active users
+            // Remove user from maps
+            usernameToSocketMap.delete(user.username);
+            uidToSocketMap.delete(user.uid);
             activeUsers.delete(socket.id);
 
-            // Update and send the list of users in the room
-            updateRoomUsers(user.room);
+            // Update active users list
+            await updateActiveUsers();
         } else {
             console.log(`User disconnected: ${socket.id}`);
         }

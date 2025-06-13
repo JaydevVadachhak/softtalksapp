@@ -1,19 +1,21 @@
-# SoftTalks - Real-Time Chat Application
+# SoftTalks - One-to-One Chat Application
 
 [![CI/CD Pipeline](https://github.com/JaydevVadachhak/softtalksapp/actions/workflows/main.yml/badge.svg)](https://github.com/JaydevVadachhak/softtalksapp/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen.svg)](https://nodejs.org/)
 
-A real-time chat application built with Node.js, Socket.io, and Redis Pub/Sub.
+A real-time one-to-one chat application built with Node.js, Socket.io, Redis, and Firebase Authentication.
 
 ## Features
 
+- User authentication with Firebase (email/password and Google sign-in)
 - Real-time messaging using Socket.io
-- Multiple chat rooms
-- One-to-one private messaging
-- Active user list with status indicators
-- Redis Pub/Sub for message broadcasting between server instances
-- Message persistence using Redis for both room and private chats
+- Direct one-to-one messaging between users
+- Online/offline status indicators
+- Message persistence using Redis
+- Unread message notifications
+- User profiles with photos
+- Password reset functionality
 - Responsive UI design
 - Docker support for easy deployment
 
@@ -22,13 +24,15 @@ A real-time chat application built with Node.js, Socket.io, and Redis Pub/Sub.
 - **Frontend**: HTML, CSS, JavaScript
 - **Backend**: Node.js, Express
 - **Real-time Communication**: Socket.io
-- **Message Broadcasting & Storage**: Redis Pub/Sub
+- **Authentication**: Firebase Authentication
+- **Message Storage**: Redis
 - **Containerization**: Docker
 
 ## Prerequisites
 
 - Node.js (v14 or higher)
 - Redis server (local or remote)
+- Firebase project with Authentication enabled
 - Docker and Docker Compose (optional)
 
 ## Quick Start
@@ -39,6 +43,9 @@ A real-time chat application built with Node.js, Socket.io, and Redis Pub/Sub.
 # Clone the repository
 git clone https://github.com/JaydevVadachhak/softtalksapp.git
 cd softtalksapp
+
+# Configure Firebase
+# Edit public/js/firebase-config.js with your Firebase project settings
 
 # Start the application with Docker
 npm run docker:up
@@ -57,6 +64,9 @@ cd softtalksapp
 # Install dependencies
 npm install
 
+# Configure Firebase
+# Edit public/js/firebase-config.js with your Firebase project settings
+
 # Create .env file (or use the scripts to create it automatically)
 echo "PORT=3000" > .env
 echo "REDIS_HOST=localhost" >> .env
@@ -72,11 +82,33 @@ npm run dev
 
 Open your browser and navigate to `http://localhost:3000`
 
+## Firebase Configuration
+
+To use this application, you need to create a Firebase project and enable Authentication:
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project
+3. Enable Authentication (Email/Password and Google Sign-in methods)
+4. Get your Firebase config object
+5. Update the `public/js/firebase-config.js` file with your Firebase configuration:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+```
+
 ## Setup Instructions - Docker
 
 1. Clone the repository
-2. Make sure Docker and Docker Compose are installed
-3. Run the application using Docker Compose:
+2. Configure Firebase as described above
+3. Make sure Docker and Docker Compose are installed
+4. Run the application using Docker Compose:
 
    ```bash
    npm run docker:up
@@ -84,8 +116,8 @@ Open your browser and navigate to `http://localhost:3000`
    docker-compose up -d
    ```
 
-4. Open your browser and navigate to `http://localhost:3000`
-5. To stop the application:
+5. Open your browser and navigate to `http://localhost:3000`
+6. To stop the application:
 
    ```bash
    npm run docker:down
@@ -96,7 +128,8 @@ Open your browser and navigate to `http://localhost:3000`
 ## Setup Instructions - Local Development
 
 1. Clone the repository
-2. Create a `.env` file in the root directory with the following variables:
+2. Configure Firebase as described above
+3. Create a `.env` file in the root directory with the following variables:
 
    ```
    PORT=3000
@@ -108,13 +141,13 @@ Open your browser and navigate to `http://localhost:3000`
    Note: Leave REDIS_PASSWORD empty if your Redis server doesn't have authentication enabled.
    If your Redis server has a password, add it to the REDIS_PASSWORD field.
 
-3. Install dependencies:
+4. Install dependencies:
 
    ```bash
    npm install
    ```
 
-4. Start the application:
+5. Start the application:
 
    ```bash
    npm start
@@ -122,7 +155,7 @@ Open your browser and navigate to `http://localhost:3000`
    npm run dev
    ```
 
-5. Open your browser and navigate to `http://localhost:3000`
+6. Open your browser and navigate to `http://localhost:3000`
 
 ## Running Redis Standalone
 
@@ -138,19 +171,23 @@ Note: The default Docker Redis image doesn't have authentication enabled. If you
 
 ## How It Works
 
-The application uses Socket.io for real-time communication between clients and the server. Redis Pub/Sub is used to broadcast messages between different server instances, allowing the application to scale horizontally.
+The application uses Socket.io for real-time communication between clients and the server. Firebase handles user authentication, and Redis is used to store messages for persistence.
 
-### Room Chat
+### User Authentication
 
-When a user sends a message in a chat room, the message is published to a Redis channel specific to that room and also stored in a Redis list for persistence. All server instances subscribe to these channels and broadcast the messages to the connected clients in the respective rooms.
+Users can sign up or log in using email/password or Google authentication via Firebase. Once authenticated, the user's profile information (username, email, photo URL) is sent to the server and stored in Redis.
 
-When a user joins a room, they receive the most recent messages from that room (up to 50 messages).
+### One-to-One Chat
 
-### Private Chat
+Users can start a chat with any other online user by clicking on their name in the active users list. Messages are delivered in real-time if both users are online. If a user is offline, messages are stored and delivered when they come back online.
 
-Users can initiate private conversations by clicking on a user's name in the active users list. Private messages are stored in Redis using a consistent naming pattern to ensure the same conversation can be retrieved regardless of which user initiates the chat.
+### Message Persistence
 
-Private messages are delivered directly to the recipient's socket if they are online, and notifications are shown if the private chat window is not currently open.
+All messages between users are stored in Redis using a consistent naming pattern to ensure the same conversation can be retrieved regardless of which user initiates the chat. When a user opens a chat with another user, they receive the most recent messages from that conversation (up to 100 messages).
+
+### Notifications
+
+When a user receives a message while chatting with someone else, a notification appears next to the sender's name in the active users list.
 
 ## Available Scripts
 
@@ -172,6 +209,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - [Socket.io](https://socket.io/) for real-time communication
-- [Redis](https://redis.io/) for pub/sub and data persistence
+- [Firebase](https://firebase.google.com/) for authentication
+- [Redis](https://redis.io/) for data persistence
 - [Express](https://expressjs.com/) for the web server
 - [Docker](https://www.docker.com/) for containerization 

@@ -3,108 +3,222 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SoftTalks - Real-time Chat App</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
-      rel="stylesheet"
-    />
+    <title>SoftTalks - One-to-One Chat</title>
+    <link rel="stylesheet" href="style.css" />
     <link
       rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
     />
   </head>
   <body>
-    <div class="container">
-      <div class="join-container" id="join-container">
+    <!-- Login/Authentication Container -->
+    <div id="login-container">
+      <div class="login-header">
         <h1>SoftTalks</h1>
-        <p>Join a chat room to start talking</p>
-        <div class="form-control">
-          <label for="username">Username</label>
+        <p>Secure one-to-one chat application</p>
+      </div>
+
+      <!-- Authentication Tabs -->
+      <div class="auth-tabs">
+        <div id="email-tab" class="auth-tab active">Login</div>
+        <div id="signup-tab" class="auth-tab">Sign Up</div>
+      </div>
+
+      <!-- Authentication Messages -->
+      <div id="auth-error" class="auth-message error-message"></div>
+      <div id="auth-success" class="auth-message success-message"></div>
+
+      <!-- Email Login Form -->
+      <form id="email-login-form">
+        <div class="form-group">
+          <label for="login-email">Email</label>
           <input
-            type="text"
-            name="username"
-            id="username"
-            placeholder="Enter username..."
+            type="email"
+            id="login-email"
+            class="form-control"
+            placeholder="Enter your email"
             required
           />
         </div>
-        <div class="form-control">
-          <label for="room">Room</label>
-          <select name="room" id="room">
-            <option value="General">General</option>
-            <option value="Technology">Technology</option>
-            <option value="Sports">Sports</option>
-            <option value="Entertainment">Entertainment</option>
-          </select>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input
+            type="password"
+            id="login-password"
+            class="form-control"
+            placeholder="Enter your password"
+            required
+          />
         </div>
-        <button class="btn" id="join-btn">Join Chat</button>
+        <button type="button" id="email-login-btn" class="btn btn-primary">
+          Login
+        </button>
+        <div class="auth-links">
+          <a id="forgot-password">Forgot Password?</a>
+        </div>
+      </form>
+
+      <!-- Sign Up Form -->
+      <form id="signup-form" style="display: none">
+        <div class="form-group">
+          <label for="signup-username">Username</label>
+          <input
+            type="text"
+            id="signup-username"
+            class="form-control"
+            placeholder="Choose a username"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="signup-email">Email</label>
+          <input
+            type="email"
+            id="signup-email"
+            class="form-control"
+            placeholder="Enter your email"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <input
+            type="password"
+            id="signup-password"
+            class="form-control"
+            placeholder="Create a password (min. 6 characters)"
+            required
+          />
+        </div>
+        <button type="button" id="signup-btn" class="btn btn-primary">
+          Sign Up
+        </button>
+      </form>
+
+      <!-- Google Login Button -->
+      <div style="margin-top: 20px">
+        <button type="button" id="google-login-btn" class="btn btn-google">
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google"
+            class="google-icon"
+          />
+          Continue with Google
+        </button>
+      </div>
+    </div>
+
+    <!-- Password Reset Modal -->
+    <div id="password-reset-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Reset Password</h2>
+          <span class="close-modal">&times;</span>
+        </div>
+        <div class="form-group">
+          <label for="reset-email">Email</label>
+          <input
+            type="email"
+            id="reset-email"
+            class="form-control"
+            placeholder="Enter your email"
+            required
+          />
+        </div>
+        <div id="reset-message" class="message"></div>
+        <button type="button" id="reset-password-btn" class="btn btn-primary">
+          Send Reset Link
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat Container -->
+    <div id="chat-container">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <!-- User Profile -->
+        <div class="user-profile">
+          <img
+            id="user-photo"
+            src="https://ui-avatars.com/api/?name=U&background=4f9cf6&color=fff&size=128"
+            alt="User"
+          />
+          <div class="user-info">
+            <h3 id="current-username">Username</h3>
+            <p id="user-email">user@example.com</p>
+          </div>
+          <button id="logout-btn" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
+
+        <!-- Users Header -->
+        <div class="users-header">
+          <h2>Active Users</h2>
+          <div class="users-count" id="users-count">0</div>
+        </div>
+
+        <!-- Users List -->
+        <ul class="users-list" id="users-list"></ul>
       </div>
 
-      <div class="chat-container" id="chat-container" style="display: none">
-        <header class="chat-header">
-          <h1>SoftTalks</h1>
-          <div class="room-info">
-            <span id="room-name"></span>
-          </div>
-          <button id="leave-btn" class="btn">Leave Room</button>
-        </header>
-        <main class="chat-main">
-          <div class="chat-sidebar">
-            <h3>Room Information</h3>
-            <div id="users-container">
-              <div id="user-count">
-                Active users: <span id="users-count">0</span>
-              </div>
-              <ul id="users-list" class="users-list"></ul>
-            </div>
-          </div>
-          <div class="chat-areas">
-            <div class="chat-messages" id="chat-messages"></div>
-            <div class="private-chat" id="private-chat" style="display: none">
-              <div class="private-chat-header">
-                <h3>Chat with <span id="private-chat-user"></span></h3>
-                <button id="close-private-chat" class="btn-icon">
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
-              <div
-                class="private-chat-messages"
-                id="private-chat-messages"
-              ></div>
-              <div class="private-chat-form-container">
-                <form id="private-chat-form">
-                  <input
-                    id="private-msg"
-                    type="text"
-                    placeholder="Type a private message..."
-                    required
-                    autocomplete="off"
-                  />
-                  <button class="btn">
-                    <i class="fas fa-paper-plane"></i> Send
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </main>
-        <div class="chat-form-container">
-          <form id="chat-form">
-            <input
-              id="msg"
-              type="text"
-              placeholder="Type a message..."
-              required
-              autocomplete="off"
+      <!-- Main Chat Area -->
+      <div class="chat-main">
+        <!-- Welcome Screen -->
+        <div id="welcome-screen">
+          <h2>Welcome to SoftTalks!</h2>
+          <p>Select a user from the sidebar to start chatting.</p>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div id="chat-messages-container">
+          <!-- Chat Header -->
+          <div class="chat-header">
+            <img
+              id="chat-user-photo"
+              src="https://ui-avatars.com/api/?name=U&background=4f9cf6&color=fff&size=128"
+              alt="User"
             />
-            <button class="btn"><i class="fas fa-paper-plane"></i> Send</button>
+            <div class="chat-header-info">
+              <h3 id="chat-user">Username</h3>
+              <div id="user-status" class="user-status">Online</div>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div id="chat-messages"></div>
+
+          <!-- Chat Form -->
+          <form id="chat-form">
+            <div class="input-wrapper">
+              <i class="fas fa-keyboard input-icon"></i>
+              <input
+                id="msg"
+                type="text"
+                placeholder="Type a message..."
+                required
+                autocomplete="off"
+              />
+            </div>
+            <button type="submit" title="Send message">
+              <i class="fas fa-paper-plane"></i>
+            </button>
           </form>
         </div>
       </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <!-- Firebase Configuration -->
+    <script src="js/firebase-config.js"></script>
+
+    <!-- Socket.io -->
     <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Main Script -->
     <script src="script.js"></script>
   </body>
 </html>
