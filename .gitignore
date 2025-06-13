@@ -9,6 +9,9 @@ jspm_packages/
 .env.test.local
 .env.production.local
 
+# Firebase configuration (contains sensitive API keys)
+public/js/firebase-config.js
+
 # Logs
 logs
 *.log
