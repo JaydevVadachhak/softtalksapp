@@ -237,6 +237,20 @@ async function updateActiveUsers() {
     io.emit('activeUsers', allUsers);
 }
 
+// Check if username exists in all users (both active and stored in Redis)
+async function usernameExists(username) {
+    // Check active users
+    for (const [_, user] of activeUsers.entries()) {
+        if (user.username === username) {
+            return true;
+        }
+    }
+
+    // Check all users in Redis
+    const allUsers = await getAllUsers();
+    return allUsers.some(user => user.username === username);
+}
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
     console.log('New user connected:', socket.id);
@@ -254,21 +268,29 @@ io.on('connection', (socket) => {
             }
         }
 
-        // Check if username is already taken by another active user
-        if (usernameToSocketMap.has(username) && usernameToSocketMap.get(username) !== socket.id) {
-            // If username is taken, add a suffix to make it unique
-            const originalUsername = username;
-            let counter = 1;
-            while (usernameToSocketMap.has(username)) {
+        // Check if this user already exists in Redis
+        const existingUser = await getUserProfile(uid);
+        if (existingUser) {
+            // Use the existing username to avoid duplicates
+            username = existingUser.username;
+        } else {
+            // For new users, check if username is already taken by any user (active or in Redis)
+            const usernameIsTaken = await usernameExists(username);
+            if (usernameIsTaken && !usernameToSocketMap.has(username)) {
+                // If username is taken, add a suffix to make it unique
+                const originalUsername = username;
+                let counter = 1;
+                while (await usernameExists(`${originalUsername}${counter}`)) {
+                    counter++;
+                }
                 username = `${originalUsername}${counter}`;
-                counter++;
-            }
 
-            socket.emit('usernameChanged', {
-                originalUsername: originalUsername,
-                newUsername: username,
-                message: `Username "${originalUsername}" was already taken. You've been assigned "${username}" instead.`
-            });
+                socket.emit('usernameChanged', {
+                    originalUsername: originalUsername,
+                    newUsername: username,
+                    message: `Username "${originalUsername}" was already taken. You've been assigned "${username}" instead.`
+                });
+            }
         }
 
         console.log(`User ${socket.id} logged in as: ${username} (${email || 'No email'})`);

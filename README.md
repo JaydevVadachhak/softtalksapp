@@ -8,7 +8,7 @@ A real-time one-to-one chat application built with Node.js, Socket.io, Redis, an
 
 ## Features
 
-- User authentication with Firebase (email/password and Google sign-in)
+- User authentication with Firebase (email/password)
 - Real-time messaging using Socket.io
 - Direct one-to-one messaging between users
 - Online/offline status indicators
@@ -88,7 +88,7 @@ To use this application, you need to create a Firebase project and enable Authen
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Create a new project
-3. Enable Authentication (Email/Password and Google Sign-in methods)
+3. Enable Authentication (Email/Password method)
 4. Get your Firebase config object
 5. Update the `public/js/firebase-config.js` file with your Firebase configuration:
 
@@ -175,7 +175,7 @@ The application uses Socket.io for real-time communication between clients and t
 
 ### User Authentication
 
-Users can sign up or log in using email/password or Google authentication via Firebase. Once authenticated, the user's profile information (username, email, photo URL) is sent to the server and stored in Redis.
+Users can sign up or log in using email/password authentication via Firebase. Once authenticated, the user's profile information (username, email, photo URL) is sent to the server and stored in Redis.
 
 ### One-to-One Chat
 

@@ -8,7 +8,6 @@ const signupTab = document.getElementById('signup-tab');
 const emailLoginForm = document.getElementById('email-login-form');
 const signupForm = document.getElementById('signup-form');
 const emailLoginBtn = document.getElementById('email-login-btn');
-const googleLoginBtn = document.getElementById('google-login-btn');
 const signupBtn = document.getElementById('signup-btn');
 const loginEmail = document.getElementById('login-email');
 const loginPassword = document.getElementById('login-password');
@@ -106,30 +105,6 @@ emailLoginBtn.addEventListener('click', async () => {
         console.log('User logged in:', userCredential.user);
     } catch (error) {
         console.error('Login error:', error);
-        showError(error.message);
-    }
-});
-
-// Google login
-googleLoginBtn.addEventListener('click', async () => {
-    try {
-        clearAuthMessages();
-        const userCredential = await auth.signInWithPopup(googleProvider);
-
-        // Check if user has a display name
-        if (!userCredential.user.displayName || userCredential.user.displayName.trim() === '') {
-            // Generate username from email
-            const username = userCredential.user.email.split('@')[0];
-
-            // Update profile with generated username
-            await userCredential.user.updateProfile({
-                displayName: username
-            });
-        }
-
-        console.log('Google user logged in:', userCredential.user);
-    } catch (error) {
-        console.error('Google login error:', error);
         showError(error.message);
     }
 });

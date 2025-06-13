@@ -121,25 +121,6 @@ body {
   background-color: #3d8ae4;
 }
 
-.btn-google {
-  background-color: #fff;
-  color: #555;
-  border: 1px solid #ddd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.btn-google:hover {
-  background-color: #f9f9f9;
-}
-
-.google-icon {
-  width: 20px;
-  height: 20px;
-}
-
 .auth-message {
   padding: 10px;
   margin-bottom: 15px;
