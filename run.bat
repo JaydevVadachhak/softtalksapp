@@ -21,33 +21,73 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-if "%1"=="docker" (
-    echo Starting SoftTalks with Docker...
-    docker-compose up -d
-    echo SoftTalks is now running.
-    echo Open your browser and navigate to http://localhost:3000
-) else if "%1"=="local" (
-    echo Starting SoftTalks locally...
-    echo Make sure Redis is running at localhost:6379
-    call npm install
-    node server.js
-) else if "%1"=="stop" (
-    echo Stopping SoftTalks Docker containers...
-    docker-compose down
-    echo SoftTalks has been stopped.
-) else if "%1"=="redis" (
-    echo Starting Redis standalone...
-    mkdir data 2>nul
-    docker run --name soft-talks-redis-instance -p 6379:6379 -v ./data:/data -d redis redis-server --save 60 1 --loglevel warning
-    echo Redis is now running on port 6379.
-) else (
-    echo Usage: %0 {docker^|local^|stop^|redis}
-    echo.
-    echo   docker - Start the application with Docker Compose
-    echo   local  - Start the application locally (requires Redis)
-    echo   stop   - Stop the Docker containers
-    echo   redis  - Start Redis standalone with Docker
+REM Function to display usage information
+:show_usage
+echo Usage: %0 [options]
+echo Options:
+echo   /h, /help       Show this help message
+echo   /d, /dev        Run in development mode
+echo   /p, /prod       Run in production mode
+echo   /docker         Run using Docker
+echo   /docker-down    Stop Docker containers
+echo   /redis-only     Run only Redis container
+goto :eof
+
+REM Parse command-line arguments
+if "%~1"=="" (
+    call :show_usage
     exit /b 1
 )
 
-exit /b 0
+REM Process arguments
+:parse_args
+if "%~1"=="" goto :end_parse
+
+if /i "%~1"=="/h" (
+    call :show_usage
+    exit /b 0
+) else if /i "%~1"=="/help" (
+    call :show_usage
+    exit /b 0
+) else if /i "%~1"=="/d" (
+    echo Starting application in development mode...
+    npm run dev
+    exit /b 0
+) else if /i "%~1"=="/dev" (
+    echo Starting application in development mode...
+    npm run dev
+    exit /b 0
+) else if /i "%~1"=="/p" (
+    echo Starting application in production mode...
+    npm run start:prod
+    exit /b 0
+) else if /i "%~1"=="/prod" (
+    echo Starting application in production mode...
+    npm run start:prod
+    exit /b 0
+) else if /i "%~1"=="/docker" (
+    echo Starting Docker containers...
+    docker-compose up -d
+    echo Docker containers started. Access the application at http://localhost:3000
+    exit /b 0
+) else if /i "%~1"=="/docker-down" (
+    echo Stopping Docker containers...
+    docker-compose down
+    exit /b 0
+) else if /i "%~1"=="/redis-only" (
+    echo Starting only Redis container...
+    npm run redis:start
+    echo Redis container started on port 6379
+    exit /b 0
+) else (
+    echo Unknown option: %~1
+    call :show_usage
+    exit /b 1
+)
+
+shift
+goto :parse_args
+
+:end_parse
+call :show_usage
+exit /b 1

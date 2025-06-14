@@ -8,11 +8,16 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - ./data:/data
+      - redis-data:/data
     command: redis-server --save 60 1 --loglevel warning
     restart: unless-stopped
     networks:
       - softtalks-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Node.js application
   app:
@@ -23,19 +28,41 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
-      - /app/node_modules
+      - app-logs:/app/logs
     environment:
       - PORT=3000
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_PASSWORD=
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - NODE_ENV=production
+      - LOG_LEVEL=info
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - softtalks-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Define volumes
+volumes:
+  redis-data:
+    driver: local
+  app-logs:
+    driver: local
 
 # Define network
 networks:

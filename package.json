@@ -11,7 +11,9 @@
     "redis:start": "docker run --name soft-talks-redis-instance -p 6379:6379 -v ./data:/data -d redis redis-server --save 60 1 --loglevel warning",
     "redis:stop": "docker stop soft-talks-redis-instance && docker rm soft-talks-redis-instance",
     "lint": "eslint .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm ci --production",
+    "start:prod": "NODE_ENV=production node server.js"
   },
   "keywords": [
     "chat",
@@ -37,7 +39,11 @@
     "express": "^5.1.0",
     "firebase": "^11.9.1",
     "redis": "^5.1.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "compression": "^1.7.4",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",

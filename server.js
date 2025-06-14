@@ -5,7 +5,25 @@ const http = require('http');
 const { Server } = require('socket.io');
 const redis = require('redis');
 const path = require('path');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const winston = require('winston');
 require('dotenv').config();
+
+// Configure logger
+const logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    transports: [
+        new winston.transports.Console(),
+        new winston.transports.File({ filename: 'error.log', level: 'error' }),
+        new winston.transports.File({ filename: 'combined.log' })
+    ]
+});
 
 // Redis setup
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
@@ -22,7 +40,7 @@ if (REDIS_PASSWORD) {
     redisConfig.password = REDIS_PASSWORD;
 }
 
-console.log(`Connecting to Redis at ${REDIS_HOST}:${REDIS_PORT}`);
+logger.info(`Connecting to Redis at ${REDIS_HOST}:${REDIS_PORT}`);
 
 // Create Redis publisher and subscriber clients
 const redisPublisher = redis.createClient(redisConfig);
@@ -30,9 +48,9 @@ const redisSubscriber = redis.createClient(redisConfig);
 const redisClient = redis.createClient(redisConfig);
 
 // Handle Redis connection errors
-redisPublisher.on('error', (err) => console.error('Redis Publisher Error:', err));
-redisSubscriber.on('error', (err) => console.error('Redis Subscriber Error:', err));
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
+redisPublisher.on('error', (err) => logger.error('Redis Publisher Error:', err));
+redisSubscriber.on('error', (err) => logger.error('Redis Subscriber Error:', err));
+redisClient.on('error', (err) => logger.error('Redis Client Error:', err));
 
 // Connect to Redis
 (async () => {
@@ -40,9 +58,9 @@ redisClient.on('error', (err) => console.error('Redis Client Error:', err));
         await redisPublisher.connect();
         await redisSubscriber.connect();
         await redisClient.connect();
-        console.log('Connected to Redis');
+        logger.info('Connected to Redis');
     } catch (err) {
-        console.error('Redis connection error:', err);
+        logger.error('Redis connection error:', err);
     }
 })();
 
@@ -51,11 +69,31 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Security middleware
+app.use(helmet());
+
+// Compression middleware
+app.use(compression());
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use(limiter);
+
 // Middleware to parse JSON
 app.use(express.json());
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Active users map: { socketId: { id, username, uid, email, photoURL } }
 const activeUsers = new Map();
@@ -456,6 +494,40 @@ io.on('connection', (socket) => {
 
 // Start the server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-}); 
+const server_instance = server.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
+async function gracefulShutdown() {
+    logger.info('Received shutdown signal, closing connections...');
+
+    // Close HTTP server
+    server_instance.close(() => {
+        logger.info('HTTP server closed');
+    });
+
+    // Close Socket.IO connections
+    io.close(() => {
+        logger.info('Socket.IO connections closed');
+    });
+
+    // Close Redis connections
+    try {
+        await redisPublisher.quit();
+        await redisSubscriber.quit();
+        await redisClient.quit();
+        logger.info('Redis connections closed');
+    } catch (err) {
+        logger.error('Error closing Redis connections:', err);
+    }
+
+    // Exit process
+    setTimeout(() => {
+        logger.info('Exiting process');
+        process.exit(0);
+    }, 1000);
+} 

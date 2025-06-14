@@ -57,28 +57,67 @@ start_redis() {
     echo "Redis is now running on port 6379."
 }
 
-# Main menu
-case "$1" in
-    docker)
-        start_docker
-        ;;
-    local)
-        start_local
-        ;;
-    stop)
-        stop_docker
-        ;;
-    redis)
-        start_redis
-        ;;
-    *)
-        echo "Usage: $0 {docker|local|stop|redis}"
-        echo ""
-        echo "  docker - Start the application with Docker Compose"
-        echo "  local  - Start the application locally (requires Redis)"
-        echo "  stop   - Stop the Docker containers"
-        echo "  redis  - Start Redis standalone with Docker"
-        exit 1
-esac
+# Function to display usage information
+show_usage() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -h, --help       Show this help message"
+    echo "  -d, --dev        Run in development mode"
+    echo "  -p, --prod       Run in production mode"
+    echo "  --docker         Run using Docker"
+    echo "  --docker-down    Stop Docker containers"
+    echo "  --redis-only     Run only Redis container"
+}
 
-exit 0
+# Parse command-line arguments
+if [ $# -eq 0 ]; then
+    show_usage
+    exit 1
+fi
+
+# Process arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -d|--dev)
+            echo "Starting application in development mode..."
+            npm run dev
+            exit 0
+            ;;
+        -p|--prod)
+            echo "Starting application in production mode..."
+            npm run start:prod
+            exit 0
+            ;;
+        --docker)
+            echo "Starting Docker containers..."
+            docker-compose up -d
+            echo "Docker containers started. Access the application at http://localhost:3000"
+            exit 0
+            ;;
+        --docker-down)
+            echo "Stopping Docker containers..."
+            docker-compose down
+            exit 0
+            ;;
+        --redis-only)
+            echo "Starting only Redis container..."
+            npm run redis:start
+            echo "Redis container started on port 6379"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            show_usage
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+# Default behavior if we reach here
+show_usage
+exit 1
