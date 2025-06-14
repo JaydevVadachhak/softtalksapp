@@ -70,7 +70,21 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://www.gstatic.com", "https://*.firebaseio.com", "https://*.firebase.com", "https://*.googleapis.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "https://ui-avatars.com", "https://*.googleapis.com", "https://*.gstatic.com"],
+            connectSrc: ["'self'", "wss://*", "https://*.firebaseio.com", "https://*.googleapis.com", "https://*.firebase.com"],
+            frameSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [],
+        },
+    },
+}));
 
 // Compression middleware
 app.use(compression());

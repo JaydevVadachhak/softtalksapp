@@ -587,7 +587,7 @@ body {
 }
 
 /* Enhanced Chat Form Styling */
-.chat-form {
+#chat-form {
   padding: 16px 20px;
   border-top: 1px solid var(--border-color);
   display: flex;
@@ -605,8 +605,7 @@ body {
 .input-wrapper {
   position: relative;
   flex: 1;
-  margin-right: 12px;
-  width: calc(100% - 60px);
+  width: 100%;
   transition: all 0.3s ease;
 }
 
@@ -622,38 +621,29 @@ body {
   transition: color 0.3s ease;
 }
 
-.chat-form input {
+#msg {
   width: 100%;
-  padding: 14px 20px 14px 45px;
+  padding: 14px 20px;
   border: 1px solid #e0e0e0;
   border-radius: 24px;
-  font-size: 15px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  outline: none;
-  position: relative;
-  z-index: 1;
-  box-sizing: border-box;
-  color: #333;
-  background-color: #f9f9f9;
 }
 
-.chat-form input:hover {
+#msg:hover {
   background-color: #f5f5f5;
   border-color: #d0d0d0;
 }
 
-.chat-form input:focus {
+#msg:focus {
   border-color: var(--primary-color);
   box-shadow: 0 1px 5px rgba(79, 156, 246, 0.3);
   background-color: #fff;
 }
 
-.chat-form input:focus ~ .input-icon {
+#msg:focus ~ .input-icon {
   color: var(--primary-color);
 }
 
-.chat-form button {
+.send-button {
   background: linear-gradient(135deg, var(--primary-color), #3d8ae4);
   color: white;
   border: none;
@@ -669,15 +659,16 @@ body {
   box-shadow: 0 3px 8px rgba(79, 156, 246, 0.3);
   transition: all 0.3s ease;
   flex-shrink: 0;
+  margin-left: 10px;
 }
 
-.chat-form button:hover {
+.send-button:hover {
   background: linear-gradient(135deg, #3d8ae4, var(--primary-color));
   transform: translateY(-2px);
   box-shadow: 0 5px 12px rgba(79, 156, 246, 0.4);
 }
 
-.chat-form button:active {
+.send-button:active {
   transform: translateY(1px);
   box-shadow: 0 2px 5px rgba(79, 156, 246, 0.3);
 }
@@ -747,8 +738,7 @@ body {
   }
 
   .input-wrapper {
-    margin-right: 10px;
-    width: calc(100% - 52px);
+    width: 100%;
   }
 
   .input-icon {
@@ -756,12 +746,12 @@ body {
     font-size: 14px;
   }
 
-  .chat-form input {
-    padding: 12px 15px 12px 38px;
+  #msg {
+    padding: 12px 15px;
     font-size: 14px;
   }
 
-  .chat-form button {
+  .send-button {
     width: 42px;
     height: 42px;
     min-width: 42px;
@@ -832,13 +822,12 @@ body {
     margin-left: 5px;
   }
 
-  .chat-form {
+  #chat-form {
     padding: 10px 12px;
   }
 
   .input-wrapper {
-    margin-right: 8px;
-    width: calc(100% - 46px);
+    width: 100%;
   }
 
   .input-icon {
@@ -846,16 +835,17 @@ body {
     font-size: 14px;
   }
 
-  .chat-form input {
-    padding: 10px 12px 10px 32px;
+  #msg {
+    padding: 10px 12px;
     font-size: 14px;
     border-radius: 20px;
   }
 
-  .chat-form button {
+  .send-button {
     width: 38px;
     height: 38px;
     min-width: 38px;
     font-size: 16px;
+    margin-left: 6px;
   }
 }
