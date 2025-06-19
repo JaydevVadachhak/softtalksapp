@@ -456,10 +456,15 @@ io.on('connection', (socket) => {
         if (toSocketId) {
             io.to(toSocketId).emit('message', messageData);
         } else {
+            // Get the target user's profile to get their last seen time
+            const targetUserProfile = await getUserProfile(toUid);
+            const lastSeen = targetUserProfile ? targetUserProfile.lastSeen : null;
+
             // Inform sender that the user is offline
             socket.emit('messageStatus', {
                 message: 'User is offline. Message will be delivered when they come online.',
-                to
+                to,
+                lastSeen
             });
         }
     });

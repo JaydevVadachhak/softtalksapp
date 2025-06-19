@@ -307,6 +307,18 @@ function startChat(username, uid, photoURL) {
     const userPhoto = photoURL || generateDefaultAvatar(username);
     chatUserPhoto.src = userPhoto;
 
+    // Get user from allUsers map to check online status
+    const user = allUsers.get(username);
+    if (user) {
+        // Update the status in the chat header to match the sidebar
+        userStatus.textContent = user.isOnline ? 'Online' : `Last seen: ${formatLastSeen(user.lastSeen)}`;
+        if (user.isOnline) {
+            userStatus.classList.remove('offline');
+        } else {
+            userStatus.classList.add('offline');
+        }
+    }
+
     // Clear previous messages
     chatMessages.innerHTML = '';
 
@@ -644,12 +656,12 @@ socket.on('conversationHistory', (users) => {
 });
 
 // Listen for message status updates
-socket.on('messageStatus', ({ message, to }) => {
+socket.on('messageStatus', ({ message, to, lastSeen }) => {
     console.log(`Message status for ${to}:`, message);
 
     // If this is the current chat, show status
     if (currentChatUser === to) {
-        userStatus.textContent = 'Offline';
+        userStatus.textContent = `Last seen: ${formatLastSeen(lastSeen)}`;
         userStatus.classList.add('offline');
 
         // Add system message
@@ -701,12 +713,15 @@ socket.on('activeUsers', (users) => {
 
     // Update status of current chat user if applicable
     if (currentChatUser) {
-        const isOnline = users.some(user => user.username === currentChatUser && user.isOnline);
-        userStatus.textContent = isOnline ? 'Online' : 'Offline';
-        if (isOnline) {
-            userStatus.classList.remove('offline');
-        } else {
-            userStatus.classList.add('offline');
+        const currentChatUserData = users.find(user => user.username === currentChatUser);
+        if (currentChatUserData) {
+            const isOnline = currentChatUserData.isOnline;
+            userStatus.textContent = isOnline ? 'Online' : `Last seen: ${formatLastSeen(currentChatUserData.lastSeen)}`;
+            if (isOnline) {
+                userStatus.classList.remove('offline');
+            } else {
+                userStatus.classList.add('offline');
+            }
         }
     }
 });
